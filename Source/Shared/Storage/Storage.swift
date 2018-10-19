@@ -100,8 +100,8 @@ extension Storage: KeyObservationRegistry {
     }
   }
 
-  public func removeObserver(forKey key: String) {
-    hybridStorage.removeObserver(forKey: key)
+    public func removeObserver(forKey key: String, forId id: UUID) {
+    hybridStorage.removeObserver(forKey: key, forId: id)
   }
 
   public func removeAllKeyObservers() {

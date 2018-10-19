@@ -212,17 +212,20 @@ final class HybridStorageTests: XCTestCase {
 
   func testRemoveKeyObserver() {
     // Test remove for key
-    storage.addObserver(self, forKey: "user1") { _, _, _ in }
+    let token = storage.addObserver(self, forKey: "user1") { _, _, _ in }
+    
     XCTAssertEqual(storage.keyObservations.count, 1)
+    XCTAssertEqual(storage.keyObservations["user1"]!.count, 1)
 
-    storage.removeObserver(forKey: "user1")
+    storage.removeObserver(forKey: "user1", forId: token.uuid)
     XCTAssertTrue(storage.storageObservations.isEmpty)
 
     // Test remove by token
-    let token = storage.addObserver(self, forKey: "user2") { _, _, _ in }
+    let token2 = storage.addObserver(self, forKey: "user2") { _, _, _ in }
     XCTAssertEqual(storage.keyObservations.count, 1)
+    XCTAssertEqual(storage.keyObservations["user2"]!.count, 1)
 
-    token.cancel()
+    token2.cancel()
     XCTAssertTrue(storage.storageObservations.isEmpty)
   }
 
