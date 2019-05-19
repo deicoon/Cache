@@ -4,9 +4,12 @@ import Foundation
 public final class HybridStorage<T> {
   public let memoryStorage: MemoryStorage<T>
   public let diskStorage: DiskStorage<T>
-
-  private(set) var storageObservations = [UUID: (HybridStorage, StorageChange) -> Void]()
-  private(set) var keyObservations = [String: (HybridStorage, KeyChange<T>) -> Void]()
+    
+  typealias StorageObserverClosure = (HybridStorage, StorageChange) -> Void
+  typealias KeyObseverClosure = (HybridStorage, KeyChange<T>) -> Void
+    
+  private(set) var storageObservations = [UUID: StorageObserverClosure]()
+  private(set) var keyObservations = [String: [UUID: KeyObseverClosure]]()
 
   public init(memoryStorage: MemoryStorage<T>, diskStorage: DiskStorage<T>) {
     self.memoryStorage = memoryStorage
@@ -105,7 +108,7 @@ extension HybridStorage: StorageObservationRegistry {
       closure(observer, storage, change)
     }
 
-    return ObservationToken { [weak self] in
+    return ObservationToken(uuid: id) { [weak self] _ in
       self?.storageObservations.removeValue(forKey: id)
     }
   }
@@ -122,27 +125,38 @@ extension HybridStorage: StorageObservationRegistry {
 }
 
 extension HybridStorage: KeyObservationRegistry {
+    
   @discardableResult
   public func addObserver<O: AnyObject>(
     _ observer: O,
     forKey key: String,
     closure: @escaping (O, HybridStorage, KeyChange<T>) -> Void
   ) -> ObservationToken {
-    keyObservations[key] = { [weak self, weak observer] storage, change in
-      guard let observer = observer else {
-        self?.removeObserver(forKey: key)
-        return
-      }
-
-      closure(observer, storage, change)
+    if keyObservations[key] == nil {
+        keyObservations[key] = [UUID: KeyObseverClosure]()
+    }
+    
+    let id = UUID()
+    
+    keyObservations[key]![id] = { [weak self, weak observer] storage, change in
+        guard let observer = observer else {
+            self?.removeObserver(forKey: key, forId: id)
+            return
+        }
+        closure(observer, storage, change)
     }
 
-    return ObservationToken { [weak self] in
-      self?.keyObservations.removeValue(forKey: key)
+    return ObservationToken(uuid: id) { [weak self] uuid in
+        if var observations = self?.keyObservations[key] {
+          observations.removeValue(forKey: uuid)
+          if observations.isEmpty {
+            self?.keyObservations.removeValue(forKey: key)
+          }
+        }
     }
   }
 
-  public func removeObserver(forKey key: String) {
+  public func removeObserver(forKey key: String, forId: UUID) {
     keyObservations.removeValue(forKey: key)
   }
 
@@ -151,17 +165,25 @@ extension HybridStorage: KeyObservationRegistry {
   }
 
   private func notifyObserver(forKey key: String, about change: KeyChange<T>) {
-    keyObservations[key]?(self, change)
+    if let values = keyObservations[key]?.values {
+        values.forEach { closure in
+            closure(self, change)
+        }
+    }
   }
 
   private func notifyObserver(about change: KeyChange<T>, whereKey closure: ((String) -> Bool)) {
-    let observation = keyObservations.first { key, _ in closure(key) }?.value
-    observation?(self, change)
+    let observations = keyObservations.first { key, _ in closure(key) }?.value
+    observations?.values.forEach({ (closure) in
+        closure(self, change)
+    })
   }
 
   private func notifyKeyObservers(about change: KeyChange<T>) {
-    keyObservations.values.forEach { closure in
-      closure(self, change)
+    keyObservations.values.forEach { items in
+        items.values.forEach({ (closure) in
+            closure(self, change)
+        })
     }
   }
 }

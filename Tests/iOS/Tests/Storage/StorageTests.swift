@@ -3,7 +3,9 @@ import XCTest
 
 final class StorageTests: XCTestCase {
   private var storage: Storage<User>!
+    
   let user = User(firstName: "John", lastName: "Snow")
+  let user2 = User(firstName: "Donald", lastName: "Trump")
 
   override func setUp() {
     super.setUp()
@@ -125,6 +127,7 @@ final class StorageTests: XCTestCase {
 
     XCTAssertEqual(changes, expectedChanges)
   }
+    
 
   func testRemoveAllStorageObservers() throws {
     var changes1 = [StorageChange]()
@@ -152,6 +155,29 @@ final class StorageTests: XCTestCase {
   }
 
   // MARK: - Key observers
+  func testAddObserversForSingleKey() throws {
+    var changes = [KeyChange<User>]()
+   
+    storage.addObserver(self, forKey: "user1") { _, _, change in
+        changes.append(change)
+    }
+    
+    storage.addObserver(self, forKey: "user1") { _, _, change in
+        changes.append(change)
+    }
+    
+    try storage.setObject(user, forKey: "user1")
+    try storage.setObject(user2, forKey: "user1")
+    
+    XCTAssertEqual(changes.count, 4)
+    
+    XCTAssertEqual(changes, [
+      KeyChange.edit(before: nil, after: user),
+      KeyChange.edit(before: nil, after: user),
+      KeyChange.edit(before: user, after: user2),
+      KeyChange.edit(before: user, after: user2),
+    ])
+  }
 
   func testAddObserverForKey() throws {
     var changes = [KeyChange<User>]()
@@ -207,20 +233,20 @@ final class StorageTests: XCTestCase {
     var changes = [KeyChange<User>]()
 
     // Test remove
-    storage.addObserver(self, forKey: "user1") { _, _, change in
+    let token = storage.addObserver(self, forKey: "user1") { _, _, change in
       changes.append(change)
     }
 
-    storage.removeObserver(forKey: "user1")
+    storage.removeObserver(forKey: "user1", forId: token.uuid)
     try storage.setObject(user, forKey: "user1")
     XCTAssertTrue(changes.isEmpty)
 
     // Test remove by token
-    let token = storage.addObserver(self, forKey: "user2") { _, _, change in
+    let token2 = storage.addObserver(self, forKey: "user2") { _, _, change in
       changes.append(change)
     }
 
-    token.cancel()
+    token2.cancel()
     try storage.setObject(user, forKey: "user1")
     XCTAssertTrue(changes.isEmpty)
   }

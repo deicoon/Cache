@@ -23,7 +23,7 @@ public protocol KeyObservationRegistry {
    Removes observer by the given key.
    - Parameter key: Unique key to identify the object in the cache
    */
-  func removeObserver(forKey key: String)
+  func removeObserver(forKey key: String, forId: UUID)
 
   /// Removes all registered key observers
   func removeAllKeyObservers()
