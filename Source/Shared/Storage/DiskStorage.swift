@@ -2,10 +2,6 @@ import Foundation
 
 /// Save objects to file on disk
 final public class DiskStorage<T> {
-  enum Error: Swift.Error {
-    case fileEnumeratorFailed
-  }
-
   /// File manager to read/write to the disk
   public let fileManager: FileManager
   /// Configuration
@@ -57,6 +53,41 @@ final public class DiskStorage<T> {
 }
 
 extension DiskStorage: StorageAware {
+  public func allKeys() throws -> Set<String> {
+    let storageURL = URL(fileURLWithPath: path)
+    let resourceKeys: [URLResourceKey] = [
+        .isDirectoryKey,
+        URLResourceKey.init(rawValue: "Cache.Storage.KeyResourceKey")
+    ]
+    
+    var diskKeys = Set<String>()
+    let fileEnumerator = fileManager.enumerator(
+        at: storageURL,
+        includingPropertiesForKeys: resourceKeys,
+        options: .skipsHiddenFiles,
+        errorHandler: nil
+    )
+    
+    guard let urlArray = fileEnumerator?.allObjects as? [URL] else {
+        throw CacheError.fileEnumeratorFailed
+    }
+    
+    for url in urlArray {
+      let resourceValues = try url.resourceValues(forKeys: Set(resourceKeys))
+
+      guard resourceValues.isDirectory != true else {
+        continue
+      }
+        
+      var allValues = resourceValues.allValues
+      allValues.removeValue(forKey: .isDirectoryKey)
+      guard let string = allValues.first?.value as? String else { continue }
+      diskKeys.insert(string)
+    }
+    
+    return diskKeys
+  }
+    
   public func entry(forKey key: String) throws -> Entry<T> {
     let filePath = makeFilePath(for: key)
     let data = try Data(contentsOf: URL(fileURLWithPath: filePath))
@@ -73,6 +104,11 @@ extension DiskStorage: StorageAware {
       filePath: filePath
     )
   }
+    
+  public func exists(forKey key: String) -> Bool {
+    let filePath = makeFilePath(for: key)
+    return fileManager.fileExists(atPath: filePath)
+  }
 
   public func setObject(_ object: T, forKey key: String, expiry: Expiry? = nil) throws {
     let expiry = expiry ?? config.expiry
@@ -80,6 +116,9 @@ extension DiskStorage: StorageAware {
     let filePath = makeFilePath(for: key)
     _ = fileManager.createFile(atPath: filePath, contents: data, attributes: nil)
     try fileManager.setAttributes([.modificationDate: expiry.date], ofItemAtPath: filePath)
+    
+    let keyAttributeKey = FileAttributeKey.init(rawValue: "Cache.Storage.KeyResourceKey")
+    try fileManager.setAttributes([keyAttributeKey : key], ofItemAtPath: filePath)
   }
 
   public func removeObject(forKey key: String) throws {
@@ -111,7 +150,7 @@ extension DiskStorage: StorageAware {
     )
 
     guard let urlArray = fileEnumerator?.allObjects as? [URL] else {
-      throw Error.fileEnumeratorFailed
+      throw CacheError.fileEnumeratorFailed
     }
 
     for url in urlArray {

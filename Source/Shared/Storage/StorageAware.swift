@@ -1,14 +1,32 @@
 import Foundation
 
+enum CacheError: Swift.Error {
+  case fileEnumeratorFailed
+}
+
 /// A protocol used for saving and loading from storage
 public protocol StorageAware {
   associatedtype T
+    
+  /**
+   Tries to create all the unique keys in the storage.
+   - Returns: Set of uniaue key strings
+   */
+  func allKeys() throws -> Set<String>
+    
   /**
    Tries to retrieve the object from the storage.
    - Parameter key: Unique key to identify the object in the cache
    - Returns: Cached object or nil if not found
    */
   func object(forKey key: String) throws -> T
+    
+  /**
+   Checks whether an object exists for a given key.
+   - Parameter key: Unique key to identify the object in the cache
+   - Returns: True or false
+   */
+  func exists(forKey key: String) -> Bool
 
   /**
    Get cache entry which includes object with metadata.

@@ -43,10 +43,18 @@ public final class Storage<T> {
 }
 
 extension Storage: StorageAware {
+  public func allKeys() throws -> Set<String> {
+    return try self.hybridStorage.allKeys()
+  }
+    
   public func entry(forKey key: String) throws -> Entry<T> {
     return try self.syncStorage.entry(forKey: key)
   }
 
+  public func exists(forKey key: String) -> Bool {
+    return self.syncStorage.exists(forKey: key)
+  }
+    
   public func removeObject(forKey key: String) throws {
     try self.syncStorage.removeObject(forKey: key)
   }

@@ -29,6 +29,13 @@ public final class HybridStorage<T> {
 }
 
 extension HybridStorage: StorageAware {
+  public func allKeys() throws -> Set<String> {
+    let memoryKeys = try memoryStorage.allKeys()
+    let diskKeys = try diskStorage.allKeys()
+    
+    return diskKeys.union(memoryKeys)
+  }
+    
   public func entry(forKey key: String) throws -> Entry<T> {
     do {
       return try memoryStorage.entry(forKey: key)
@@ -38,6 +45,14 @@ extension HybridStorage: StorageAware {
       memoryStorage.setObject(entry.object, forKey: key, expiry: entry.expiry)
       return entry
     }
+  }
+    
+  public func exists(forKey key: String) -> Bool {
+    if !memoryStorage.exists(forKey: key) {
+      let exists = diskStorage.exists(forKey: key)
+      return exists
+    }
+    return false
   }
 
   public func removeObject(forKey key: String) throws {

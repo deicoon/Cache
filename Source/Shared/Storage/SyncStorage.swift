@@ -14,6 +14,10 @@ public class SyncStorage<T> {
 }
 
 extension SyncStorage: StorageAware {
+  public func allKeys() throws -> Set<String> {
+    return try innerStorage.allKeys()
+  }
+    
   public func entry(forKey key: String) throws -> Entry<T> {
     var entry: Entry<T>!
     try serialQueue.sync {
@@ -21,6 +25,10 @@ extension SyncStorage: StorageAware {
     }
 
     return entry
+  }
+    
+  public func exists(forKey key: String) -> Bool {
+    return innerStorage.exists(forKey: key)
   }
 
   public func removeObject(forKey key: String) throws {

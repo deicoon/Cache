@@ -3,7 +3,7 @@ import Foundation
 public class MemoryStorage<T>: StorageAware {
   fileprivate let cache = NSCache<NSString, MemoryCapsule>()
   // Memory cache keys
-  fileprivate var keys = Set<String>()
+  internal var keys = Set<String>()
   /// Configuration
   fileprivate let config: MemoryConfig
 
@@ -11,6 +11,10 @@ public class MemoryStorage<T>: StorageAware {
     self.config = config
     self.cache.countLimit = Int(config.countLimit)
     self.cache.totalCostLimit = Int(config.totalCostLimit)
+  }
+    
+  public func allKeys() throws -> Set<String> {
+    return self.keys
   }
 }
 
@@ -54,6 +58,10 @@ extension MemoryStorage {
     }
 
     return Entry(object: object, expiry: capsule.expiry)
+  }
+    
+  public func exists(forKey key: String) -> Bool {
+    return keys.contains(key)
   }
 }
 
